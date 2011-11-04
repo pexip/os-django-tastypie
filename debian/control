@@ -1,0 +1,18 @@
+Source: django-tastypie
+Maintainer: Dominique Belhachemi <domibel@debian.org>
+Section: python
+Priority: optional
+Build-Depends: cdbs (>=0.4.90), debhelper (>= 8), python-setuptools, python-all (>=2.6.6-3)
+Standards-Version: 3.9.2
+Homepage: http://django-tastypie.readthedocs.org/
+
+Package: python-tastypie
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}, python-dateutil (>= 1.5), python-django (>= 1.2), python-mimeparse (>= 0.1.3)
+Suggests: python-yaml, python-lxml
+Breaks: python-django-tastypie (<= 0.9.9-2)
+Replaces: python-django-tastypie (<= 0.9.9-2)
+Description: webservice API framework for Django
+ Tastypie is an webservice API framework for Django. It provides a
+ convenient, yet powerful and highly customizable, abstraction for
+ creating REST-style interfaces.
