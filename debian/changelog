@@ -1,4 +1,4 @@
-django-tastypie (0.9.11-1) unstable; urgency=low
+django-tastypie (0.9.11-1) precise; urgency=low
 
   * Imported Upstream version 0.9.11
   * Removed now-redundant debian/patches/python_digest.diff
