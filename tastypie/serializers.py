@@ -3,13 +3,11 @@ from StringIO import StringIO
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.serializers import json
-from django.template import loader, Context
 from django.utils import simplejson
 from django.utils.encoding import force_unicode
 from tastypie.bundle import Bundle
 from tastypie.exceptions import UnsupportedFormat
 from tastypie.utils import format_datetime, format_date, format_time
-from tastypie.fields import ApiField, ToOneField, ToManyField
 try:
     import lxml
     from lxml.etree import parse as parse_xml
@@ -21,6 +19,38 @@ try:
     from django.core.serializers import pyyaml
 except ImportError:
     yaml = None
+try:
+    import biplist
+except ImportError:
+    biplist = None
+
+
+# Ugh & blah.
+# So doing a regular dump is generally fine, since Tastypie doesn't usually
+# serialize advanced types. *HOWEVER*, it will dump out Python Unicode strings
+# as a custom YAML tag, which of course ``yaml.safe_load`` can't handle.
+if yaml is not None:
+    from yaml.constructor import SafeConstructor
+    from yaml.loader import Reader, Scanner, Parser, Composer, Resolver
+
+    class TastypieConstructor(SafeConstructor):
+        def construct_yaml_unicode_dammit(self, node):
+            value = self.construct_scalar(node)
+            try:
+                return value.encode('ascii')
+            except UnicodeEncodeError:
+                return value
+
+    TastypieConstructor.add_constructor(u'tag:yaml.org,2002:python/unicode', TastypieConstructor.construct_yaml_unicode_dammit)
+
+    class TastypieLoader(Reader, Scanner, Parser, Composer, TastypieConstructor, Resolver):
+        def __init__(self, stream):
+            Reader.__init__(self, stream)
+            Scanner.__init__(self)
+            Parser.__init__(self)
+            Composer.__init__(self)
+            TastypieConstructor.__init__(self)
+            Resolver.__init__(self)
 
 
 class Serializer(object):
@@ -34,18 +64,20 @@ class Serializer(object):
         * xml
         * yaml
         * html
+        * plist (see http://explorapp.com/biplist/)
 
     It was designed to make changing behavior easy, either by overridding the
     various format methods (i.e. ``to_json``), by changing the
     ``formats/content_types`` options or by altering the other hook methods.
     """
-    formats = ['json', 'jsonp', 'xml', 'yaml', 'html']
+    formats = ['json', 'jsonp', 'xml', 'yaml', 'html', 'plist']
     content_types = {
         'json': 'application/json',
         'jsonp': 'text/javascript',
         'xml': 'application/xml',
         'yaml': 'text/yaml',
         'html': 'text/html',
+        'plist': 'application/x-plist',
     }
 
     def __init__(self, formats=None, content_types=None, datetime_formatting=None):
@@ -175,13 +207,13 @@ class Serializer(object):
             return dict((key, self.to_simple(val, options)) for (key, val) in data.iteritems())
         elif isinstance(data, Bundle):
             return dict((key, self.to_simple(val, options)) for (key, val) in data.data.iteritems())
-        elif isinstance(data, ApiField):
-            if isinstance(data, ToOneField):
+        elif hasattr(data, 'dehydrated_type'):
+            if getattr(data, 'dehydrated_type', None) == 'related' and data.is_m2m == False:
                 if data.full:
                     return self.to_simple(data.fk_resource, options)
                 else:
                     return self.to_simple(data.value, options)
-            elif isinstance(data, ToManyField):
+            elif getattr(data, 'dehydrated_type', None) == 'related' and data.is_m2m == True:
                 if data.full:
                     return [self.to_simple(bundle, options) for bundle in data.m2m_bundles]
                 else:
@@ -229,13 +261,13 @@ class Serializer(object):
             element = Element(name or 'object')
             for field_name, field_object in data.data.items():
                 element.append(self.to_etree(field_object, options, name=field_name, depth=depth+1))
-        elif isinstance(data, ApiField):
-            if isinstance(data, ToOneField):
+        elif hasattr(data, 'dehydrated_type'):
+            if getattr(data, 'dehydrated_type', None) == 'related' and data.is_m2m == False:
                 if data.full:
                     return self.to_etree(data.fk_resource, options, name, depth+1)
                 else:
                     return self.to_etree(data.value, options, name, depth+1)
-            elif isinstance(data, ToManyField):
+            elif getattr(data, 'dehydrated_type', None) == 'related' and data.is_m2m == True:
                 if data.full:
                     element = Element(name or 'objects')
                     for bundle in data.m2m_bundles:
@@ -350,7 +382,27 @@ class Serializer(object):
         if yaml is None:
             raise ImproperlyConfigured("Usage of the YAML aspects requires yaml.")
 
-        return yaml.safe_load(content)
+        return yaml.load(content, Loader=TastypieLoader)
+
+    def to_plist(self, data, options=None):
+        """
+        Given some Python data, produces binary plist output.
+        """
+        options = options or {}
+
+        if biplist is None:
+            raise ImproperlyConfigured("Usage of the plist aspects requires biplist.")
+
+        return biplist.writePlistToString(self.to_simple(data, options))
+
+    def from_plist(self, content):
+        """
+        Given some binary plist data, returns a Python dictionary of the decoded data.
+        """
+        if biplist is None:
+            raise ImproperlyConfigured("Usage of the plist aspects requires biplist.")
+
+        return biplist.readPlistFromString(content)
 
     def to_html(self, data, options=None):
         """
