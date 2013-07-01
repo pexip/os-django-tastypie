@@ -1,3 +1,9 @@
+django-tastypie (0.9.15-1) precise; urgency=low
+
+  * Imported Upstream version 0.9.15
+
+ -- Colin Bradbury <colin.bradbury@gmail.com>  Mon, 01 Jul 2013 13:52:04 +0000
+
 django-tastypie (0.9.11-1) precise; urgency=low
 
   * Imported Upstream version 0.9.11
