@@ -1,8 +1,14 @@
-django-tastypie (0.9.15-1) precise; urgency=low
+django-tastypie (0.12.2-1) precise; urgency=low
 
-  * Imported Upstream version 0.9.15
+  * Imported Upstream version 0.12.2
 
- -- Colin Bradbury <colin.bradbury@gmail.com>  Mon, 01 Jul 2013 13:52:04 +0000
+ -- Colin Bradbury <colin.bradbury@gmail.com>  Mon, 07 Dec 2015 13:36:28 +0000
+
+ django-tastypie (0.9.15-1) precise; urgency=low
+
+   * Imported Upstream version 0.9.15
+
+  -- Colin Bradbury <colin.bradbury@gmail.com>  Mon, 01 Jul 2013 13:52:04 +0000
 
 django-tastypie (0.9.11-1) precise; urgency=low
 
@@ -42,7 +48,7 @@ django-tastypie (0.9.9-2) unstable; urgency=low
 
   * Bump Standards-Version to 3.9.2
   * Bump debhelper 8
-  * Switch to dh_python2 
+  * Switch to dh_python2
 
  -- Dominique Belhachemi <domibel@debian.org>  Mon, 24 Oct 2011 21:59:16 -0400
 
