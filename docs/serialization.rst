@@ -45,7 +45,7 @@ The default ``Serializer`` supports the following formats:
 * plist (see http://explorapp.com/biplist/)
 
 Not everyone wants to install or support all the serialization options. If you
-would list to customize the list of supported formats for your entire site
+would like to customize the list of supported formats for your entire site
 the :ref:`TASTYPIE_DEFAULT_FORMATS setting <settings.TASTYPIE_DEFAULT_FORMATS>`
 allows you to set the default format list site-wide.
 
@@ -123,8 +123,8 @@ To tweak a format, simply override it's ``to_<format>`` & ``from_<format>``
 methods. So adding the server time to all output might look like so::
 
     import time
-    from django.utils import simplejson
-    from django.core.serializers import json
+    import json
+    from django.core.serializers.json import DjangoJSONEncoder
     from tastypie.serializers import Serializer
 
     class CustomJSONSerializer(Serializer):
@@ -136,10 +136,10 @@ methods. So adding the server time to all output might look like so::
             # Add in the current time.
             data['requested_time'] = time.time()
 
-            return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
+            return json.dumps(data, cls=DjangoJSONEncoder, sort_keys=True)
 
         def from_json(self, content):
-            data = simplejson.loads(content)
+            data = json.loads(content)
 
             if 'requested_time' in data:
                 # Log the request here...
