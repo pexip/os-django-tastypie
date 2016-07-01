@@ -1,11 +1,24 @@
-from tests.testcases import TestServerTestCase
-import httplib
+import json
+
+from django.test.utils import override_settings
+from django.utils import six
+
+from testcases import TestServerTestCase
+
 try:
-    import json
+    from http.client import HTTPConnection
 except ImportError:
-    import simplejson as json
+    from httplib import HTTPConnection
 
 
+def header_name(name):
+    if six.PY3:
+        return name
+    else:
+        return name.lower()
+
+
+@override_settings(DEBUG=True)
 class HTTPTestCase(TestServerTestCase):
     def setUp(self):
         self.start_test_server(address='localhost', port=8001)
@@ -14,25 +27,44 @@ class HTTPTestCase(TestServerTestCase):
         self.stop_test_server()
 
     def get_connection(self):
-        return httplib.HTTPConnection('localhost', 8001)
+        return HTTPConnection('localhost', 8001)
 
     def test_get_apis_json(self):
         connection = self.get_connection()
         connection.request('GET', '/api/v1/', headers={'Accept': 'application/json'})
         response = connection.getresponse()
         connection.close()
-        data = response.read()
+        data = response.read().decode('utf-8')
         self.assertEqual(response.status, 200)
-        self.assertEqual(data, '{"notes": {"list_endpoint": "/api/v1/notes/", "schema": "/api/v1/notes/schema/"}, "users": {"list_endpoint": "/api/v1/users/", "schema": "/api/v1/users/schema/"}}')
+        self.assertEqual(data, '{"cache_disabled_users": {"list_endpoint": "/api/v1/cache_disabled_users/", "schema": "/api/v1/cache_disabled_users/schema/"}, "cached_users": {"list_endpoint": "/api/v1/cached_users/", "schema": "/api/v1/cached_users/schema/"}, "notes": {"list_endpoint": "/api/v1/notes/", "schema": "/api/v1/notes/schema/"}, "private_cached_users": {"list_endpoint": "/api/v1/private_cached_users/", "schema": "/api/v1/private_cached_users/schema/"}, "public_cached_users": {"list_endpoint": "/api/v1/public_cached_users/", "schema": "/api/v1/public_cached_users/schema/"}, "users": {"list_endpoint": "/api/v1/users/", "schema": "/api/v1/users/schema/"}}')
+
+    def test_get_apis_invalid_accept(self):
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/', headers={'Accept': 'invalid'})
+        response = connection.getresponse()
+        connection.close()
+        response.read().decode('utf-8')
+        self.assertEqual(response.status, 400, "Invalid HTTP Accept headers should return HTTP 400")
+
+    def test_get_resource_invalid_accept(self):
+        """Invalid HTTP Accept headers should return HTTP 400"""
+        # We need to test this twice as there's a separate dispatch path for resources:
+
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/notes/', headers={'Accept': 'invalid'})
+        response = connection.getresponse()
+        connection.close()
+        response.read().decode('utf-8')
+        self.assertEqual(response.status, 400, "Invalid HTTP Accept headers should return HTTP 400")
 
     def test_get_apis_xml(self):
         connection = self.get_connection()
         connection.request('GET', '/api/v1/', headers={'Accept': 'application/xml'})
         response = connection.getresponse()
         connection.close()
-        data = response.read()
+        data = response.read().decode('utf-8')
         self.assertEqual(response.status, 200)
-        self.assertEqual(data, '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<response><notes type="hash"><list_endpoint>/api/v1/notes/</list_endpoint><schema>/api/v1/notes/schema/</schema></notes><users type="hash"><list_endpoint>/api/v1/users/</list_endpoint><schema>/api/v1/users/schema/</schema></users></response>')
+        self.assertEqual(data, '<?xml version=\'1.0\' encoding=\'utf-8\'?>\n<response><cache_disabled_users type="hash"><list_endpoint>/api/v1/cache_disabled_users/</list_endpoint><schema>/api/v1/cache_disabled_users/schema/</schema></cache_disabled_users><cached_users type="hash"><list_endpoint>/api/v1/cached_users/</list_endpoint><schema>/api/v1/cached_users/schema/</schema></cached_users><notes type="hash"><list_endpoint>/api/v1/notes/</list_endpoint><schema>/api/v1/notes/schema/</schema></notes><private_cached_users type="hash"><list_endpoint>/api/v1/private_cached_users/</list_endpoint><schema>/api/v1/private_cached_users/schema/</schema></private_cached_users><public_cached_users type="hash"><list_endpoint>/api/v1/public_cached_users/</list_endpoint><schema>/api/v1/public_cached_users/schema/</schema></public_cached_users><users type="hash"><list_endpoint>/api/v1/users/</list_endpoint><schema>/api/v1/users/schema/</schema></users></response>')
 
     def test_get_list(self):
         connection = self.get_connection()
@@ -40,7 +72,7 @@ class HTTPTestCase(TestServerTestCase):
         response = connection.getresponse()
         connection.close()
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.read(), '{"meta": {"limit": 20, "next": null, "offset": 0, "previous": null, "total_count": 2}, "objects": [{"content": "This is my very first post using my shiny new API. Pretty sweet, huh?", "created": "2010-03-30T20:05:00", "id": "1", "is_active": true, "resource_uri": "/api/v1/notes/1/", "slug": "first-post", "title": "First Post!", "updated": "2010-03-30T20:05:00", "user": "/api/v1/users/1/"}, {"content": "The dog ate my cat today. He looks seriously uncomfortable.", "created": "2010-03-31T20:05:00", "id": "2", "is_active": true, "resource_uri": "/api/v1/notes/2/", "slug": "another-post", "title": "Another Post", "updated": "2010-03-31T20:05:00", "user": "/api/v1/users/1/"}]}')
+        self.assertEqual(response.read().decode('utf-8'), '{"meta": {"limit": 20, "next": null, "offset": 0, "previous": null, "total_count": 2}, "objects": [{"content": "This is my very first post using my shiny new API. Pretty sweet, huh?", "created": "2010-03-30T20:05:00", "id": 1, "is_active": true, "resource_uri": "/api/v1/notes/1/", "slug": "first-post", "title": "First Post!", "updated": "2010-03-30T20:05:00", "user": "/api/v1/users/1/"}, {"content": "The dog ate my cat today. He looks seriously uncomfortable.", "created": "2010-03-31T20:05:00", "id": 2, "is_active": true, "resource_uri": "/api/v1/notes/2/", "slug": "another-post", "title": "Another Post", "updated": "2010-03-31T20:05:00", "user": "/api/v1/users/1/"}]}')
 
     def test_post_object(self):
         connection = self.get_connection()
@@ -48,7 +80,8 @@ class HTTPTestCase(TestServerTestCase):
         connection.request('POST', '/api/v1/notes/', body=post_data, headers={'Accept': 'application/json', 'Content-type': 'application/json'})
         response = connection.getresponse()
         self.assertEqual(response.status, 201)
-        self.assertEqual(dict(response.getheaders())['location'], 'http://localhost:8001/api/v1/notes/3/')
+        location = dict(response.getheaders())[header_name('Location')]
+        self.assertTrue(location.endswith('/api/v1/notes/3/'))
 
         # make sure posted object exists
         connection.request('GET', '/api/v1/notes/3/', headers={'Accept': 'application/json'})
@@ -57,9 +90,77 @@ class HTTPTestCase(TestServerTestCase):
 
         self.assertEqual(response.status, 200)
 
-        data = response.read()
+        data = response.read().decode('utf-8')
         obj = json.loads(data)
 
         self.assertEqual(obj['content'], 'A new post.')
         self.assertEqual(obj['is_active'], True)
         self.assertEqual(obj['user'], '/api/v1/users/1/')
+
+    def test_vary_accept(self):
+        """
+        Ensure that resources return the Vary: Accept header.
+        """
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/cached_users/', headers={'Accept': 'application/json'})
+        response = connection.getresponse()
+        connection.close()
+
+        self.assertEqual(response.status, 200)
+
+        headers = dict(response.getheaders())
+        vary = headers.get(header_name('Vary'), "")
+        vary_types = [x.strip().lower() for x in vary.split(",") if x.strip()]
+        self.assertIn("accept", vary_types)
+
+    def test_cache_control(self):
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/cached_users/', headers={'Accept': 'application/json'})
+        response = connection.getresponse()
+        connection.close()
+        self.assertEqual(response.status, 200)
+
+        headers = dict(response.getheaders())
+        cache_control = set([x.strip().lower() for x in headers[header_name("Cache-Control")].split(",") if x.strip()])
+
+        self.assertEqual(cache_control, set(["s-maxage=3600", "max-age=3600"]))
+        self.assertTrue('"johndoe"' in response.read().decode('utf-8'))
+
+    def test_cache_disabled_control(self):
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/cache_disabled_users/', headers={'Accept': 'application/json'})
+        response = connection.getresponse()
+        connection.close()
+        self.assertEqual(response.status, 200)
+
+        headers = dict(response.getheaders())
+        cache_control = set([x.strip().lower() for x in headers[header_name("Cache-Control")].split(",") if x.strip()])
+
+        self.assertEqual(cache_control, set(["s-maxage=0", "max-age=0"]))
+        self.assertTrue('"johndoe"' in response.read().decode('utf-8'))
+
+    def test_public_cache_control(self):
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/public_cached_users/', headers={'Accept': 'application/json'})
+        response = connection.getresponse()
+        connection.close()
+        self.assertEqual(response.status, 200)
+
+        headers = dict(response.getheaders())
+        cache_control = set([x.strip().lower() for x in headers[header_name("Cache-Control")].split(",") if x.strip()])
+
+        self.assertEqual(cache_control, set(["s-maxage=3600", "max-age=3600", "public"]))
+        self.assertTrue('"johndoe"' in response.read().decode('utf-8'))
+
+    def test_private_cache_control(self):
+        connection = self.get_connection()
+        connection.request('GET', '/api/v1/private_cached_users/', headers={'Accept': 'application/json'})
+        response = connection.getresponse()
+        connection.close()
+        self.assertEqual(response.status, 200)
+
+        headers = dict(response.getheaders())
+        cache_control = set([x.strip().lower() for x in headers[header_name("Cache-Control")].split(",") if x.strip()])
+
+        self.assertEqual(cache_control, set(["s-maxage=3600", "max-age=3600", "private"]))
+        self.assertTrue('"johndoe"' in response.read().decode('utf-8'))

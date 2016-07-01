@@ -1,3 +1,46 @@
+django-tastypie (0.13.3-1) unstable; urgency=medium
+
+  * new upstream release with support for Django 1.8/1.9 (Closes: #826022)
+  * Bump Standards-Version to 3.9.8
+  * supports python 2.7 and 3.4
+
+ -- Dominique Belhachemi <domibel@debian.org>  Thu, 30 Jun 2016 23:07:53 -0400
+
+django-tastypie (0.12.0-1) unstable; urgency=medium
+
+  * new upstream release with support for Django 1.7 (Closes: #755606)
+  * debian/control: updated short description, suggest python-defusedxml
+  * updated debian/copyright to be conform with copyright-format/1.0/
+
+ -- Dominique Belhachemi <domibel@debian.org>  Tue, 23 Sep 2014 12:42:17 -0400
+
+django-tastypie (0.11.1-2) unstable; urgency=medium
+
+  * added package python3-django-tastypie (Closes: #753647)
+
+ -- Dominique Belhachemi <domibel@debian.org>  Mon, 11 Aug 2014 14:57:58 -0400
+
+django-tastypie (0.11.1-1) unstable; urgency=low
+
+  * new upstream release
+  * Bump Standards-Version to 3.9.5
+  * debian/compat: 9
+  * debian/rules: switch from cdbs to dh
+  * bumped dependencies
+  *    python-django (>= 1.5)
+  *    python-mimeparse (>= 0.1.4)
+  * rename binary package to python-django-tastypie (Closes: #721804)
+
+ -- Dominique Belhachemi <domibel@debian.org>  Mon, 11 Aug 2014 11:48:43 -0400
+
+django-tastypie (0.9.15-1) unstable; urgency=low
+
+  * new upstream release
+  * Bump Standards-Version to 3.9.4
+  * updated watch file, thanks to Bart Martens
+
+ -- Dominique Belhachemi <domibel@debian.org>  Sat, 22 Jun 2013 09:17:01 -0400
+
 django-tastypie (0.9.10-2) unstable; urgency=low
 
   * added runtime dependencies (Closes: #647599)

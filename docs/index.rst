@@ -1,42 +1,46 @@
 Welcome to Tastypie!
 ====================
 
-Tastypie is an webservice API framework for Django. It provides a convenient,
+Tastypie is a webservice API framework for Django. It provides a convenient,
 yet powerful and highly customizable, abstraction for creating REST-style
 interfaces.
 
 .. toctree::
-   :maxdepth: 2
-   
+   :maxdepth: 1
+
    tutorial
    interacting
    settings
    non_orm_data_sources
-   
+   tools
+   testing
+   compatibility_notes
+   python3
+
    resources
+   bundles
    api
    fields
    caching
    validation
-   authentication_authorization
+   authentication
+   authorization
    serialization
    throttling
-   
+   paginator
+   geodjango
+   content_types
+   namespaces
+
    cookbook
    debugging
    who_uses
+   contributing
 
+.. toctree::
+   :maxdepth: 2
 
-Getting Help
-============
-
-There are two primary ways of getting help. We have a `mailing list`_ hosted at
-Google (http://groups.google.com/group/django-tastypie/) and an IRC channel
-(`#tastypie on irc.freenode.net`_) to get help, want to bounce idea or
-generally shoot the breeze.
-
-.. _`mailing list`: http://groups.google.com/group/django-tastypie/
-.. _#tastypie on irc.freenode.net: irc://irc.freenode.net/tastypie
+   release_notes/index
 
 
 Quick Start
@@ -48,26 +52,27 @@ Quick Start
 
     from tastypie.resources import ModelResource
     from my_app.models import MyModel
-    
-    
+
+
     class MyModelResource(ModelResource):
         class Meta:
             queryset = MyModel.objects.all()
             allowed_methods = ['get']
 
 4. In your root URLconf, add the following code (around where the admin code might be)::
-    
+
+    from django.conf.urls import url, include
     from tastypie.api import Api
     from my_app.api.resources import MyModelResource
-    
+
     v1_api = Api(api_name='v1')
     v1_api.register(MyModelResource())
-    
-    urlpatterns = patterns('',
+
+    urlpatterns = [
       # ...more URLconf bits here...
       # Then add:
-      (r'^api/', include(v1_api.urls)),
-    )
+      url(r'^api/', include(v1_api.urls)),
+    ]
 
 5. Hit http://localhost:8000/api/v1/?format=json in your browser!
 
@@ -75,22 +80,89 @@ Quick Start
 Requirements
 ============
 
-Tastypie requires the following modules. If you use Pip_, you can install
-the necessary bits via the included ``requirements.txt``:
+Core
+----
 
-* Python 2.4+
-* Django 1.0+
-* mimeparse 0.1.3+ (http://code.google.com/p/mimeparse/)
+* Python 2.7+ or Python 3.4+
+* Django 1.7 through Django 1.9
+* dateutil (http://labix.org/python-dateutil) >= 2.1
 
-  * Older versions will work, but their behavior on JSON/JSONP is a touch wonky.
+Format Support
+--------------
 
-* dateutil (http://labix.org/python-dateutil)
-* lxml (http://codespeak.net/lxml/) if using the XML serializer
-* pyyaml (http://pyyaml.org/) if using the YAML serializer
+* XML: lxml 3 (http://lxml.de/) and defusedxml (https://pypi.python.org/pypi/defusedxml)
+* YAML: pyyaml (http://pyyaml.org/)
+* binary plist: biplist (http://explorapp.com/biplist/)
 
-If you choose to use Python 2.4, be warned that you will also need to grab the
-following modules:
+Optional
+--------
 
-* uuid (present in 2.5+, downloadable from http://pypi.python.org/pypi/uuid/) if using the ``ApiKey`` authentication
+* HTTP Digest authentication: python3-digest (https://bitbucket.org/akoha/python-digest/)
 
-.. _Pip: http://pip.openplans.org/
+
+Why Tastypie?
+=============
+
+There are other API frameworks out there for Django. You need to
+assess the options available and decide for yourself. That said, here are some
+common reasons for tastypie.
+
+* You need an API that is RESTful and uses HTTP well.
+* You want to support deep relations.
+* You DON'T want to have to write your own serializer to make the output right.
+* You want an API framework that has little magic, very flexible and maps well to
+  the problem domain.
+* You want/need XML serialization that is treated equally to JSON (and YAML is
+  there too).
+
+
+Reference Material
+==================
+
+* https://django-tastypie.readthedocs.org/en/latest/
+* https://github.com/django-tastypie/django-tastypie/tree/master/tests/basic shows
+  basic usage of tastypie
+* http://en.wikipedia.org/wiki/REST
+* http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+* http://www.ietf.org/rfc/rfc2616.txt
+* http://jacobian.org/writing/rest-worst-practices/
+
+
+Getting Help
+============
+
+There are two primary ways of getting help.
+
+1. Go to `StackOverflow`_ and post a question with the ``tastypie`` tag.
+2. We have an IRC channel (`#tastypie on irc.freenode.net`_) to get help,
+   bounce an idea by us, or generally shoot the breeze.
+
+.. _`StackOverflow`: https://stackoverflow.com/questions/tagged/tastypie
+.. _#tastypie on irc.freenode.net: irc://irc.freenode.net/tastypie
+
+
+Running The Tests
+=================
+
+The easiest way to get setup to run Tastypie's tests looks like::
+
+  $ git clone https://github.com/django-tastypie/django-tastypie.git
+  $ cd django-tastypie
+  $ virtualenv env
+  $ . env/bin/activate
+  $ ./env/bin/pip install -U -r requirements.txt
+
+Then running the tests is as simple as::
+
+  # From the same directory as above:
+  $ ./env/bin/pip install -U -r tests/requirements.txt
+  $ ./env/bin/pip install tox
+  $ tox
+
+Tastypie is maintained with all tests passing at all times for released
+dependencies. (At times tests may fail with development versions of Django.
+These will be noted as allowed failures in the ``.travis.yml`` file.) If you
+find a failure, please `report it`_ along with the versions of the installed
+software.
+
+.. _`report it`: https://github.com/django-tastypie/django-tastypie/issues

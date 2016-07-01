@@ -1,41 +1,46 @@
 #!/bin/bash
+
 PYTHONPATH=$PWD:$PWD/..${PYTHONPATH:+:$PYTHONPATH}
 export PYTHONPATH
 
-echo "** Core **"
-django-admin.py test core --settings=settings_core
+VERSION=`django-admin.py --version`
+arrIN=(${VERSION//./ })
+major=${arrIN[0]}
+minor=${arrIN[1]}
 
-echo
-echo
-echo "** Basic **"
-django-admin.py test basic --settings=settings_basic
+ALL="core customuser basic alphanumeric slashless namespaced related validation gis gis_spatialite content_gfk authorization"
 
-#echo
-#echo
-#echo "** Complex **"
-#django-admin.py test complex --settings=settings_complex
+if [ $# -eq 0 ]; then
+    PYTESTPATHS=$ALL
+elif [ $1 == '-h' ]; then
+    echo "Valid arguments are: $ALL"
+else
+    PYTESTPATHS=$@
+fi
 
-echo
-echo
-echo "** Alphanumeric Primary Keys **"
-django-admin.py test alphanumeric --settings=settings_alphanumeric
-
-echo
-echo
-echo "** Slashless **"
-django-admin.py test slashless --settings=settings_slashless
-
-echo
-echo
-echo "** Namespaced **"
-django-admin.py test namespaced --settings=settings_namespaced
-
-echo
-echo
-echo "** Related Resource **"
-django-admin.py test related_resource --settings=settings_related
-
-echo
-echo
-echo "** Validation **"
-django-admin.py test validation --settings=settings_validation
+for pytestpath in $PYTESTPATHS; do
+    IFS='.' read -r type type_remainder <<< "$pytestpath"
+    
+    echo "** $type **"
+    module_name=$type
+    
+    if [ $type == 'related' ]; then
+        module_name=${module_name}_resource
+    elif [ $type == 'gis_spatialite' ]; then
+        module_name='gis'
+    fi
+    
+    test_name=$module_name
+    if [ -n "$type_remainder" ]; then
+        test_name=$test_name.$type_remainder
+    fi
+    
+    if [ $type == 'gis' ]; then
+        createdb -T template_postgis tastypie.db
+    elif [ $type == 'gis_spatialite' ]; then
+        spatialite tastypie-spatialite.db "SELECT InitSpatialMetaData();"
+    fi
+    
+    ./manage_$type.py test $test_name.tests --traceback
+    echo; echo
+done

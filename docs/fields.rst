@@ -15,16 +15,15 @@ Quick Start
 
 For the impatient::
 
-  import datetime
-  from tastypie import fields
+  from tastypie import fields, utils
   from tastypie.resources import Resource
   from myapp.api.resources import ProfileResource, NoteResource
-  
-  
+
+
   class PersonResource(Resource):
       name = fields.CharField(attribute='name')
       age = fields.IntegerField(attribute='years_old', null=True)
-      created = fields.DateTimeField(readonly=True, help_text='When the person was created', default=datetime.datetime.now)
+      created = fields.DateTimeField(readonly=True, help_text='When the person was created', default=utils.now)
       is_active = fields.BooleanField(default=True)
       profile = fields.ToOneField(ProfileResource, 'profile')
       notes = fields.ToManyField(NoteResource, 'notes', full=True)
@@ -74,6 +73,16 @@ Defaults to ``tastypie.fields.NOT_PROVIDED``.
 Indicates whether or not a ``None`` is allowable data on the field. Defaults to
 ``False``.
 
+``blank``
+~~~~~~~~~
+
+.. attribute:: ApiField.blank
+
+Indicates whether or not data may be omitted on the field. Defaults to ``False``.
+
+This is useful for allowing the user to omit data that you can populate based
+on the request, such as the ``user`` or ``site`` to associate a record with.
+
 ``readonly``
 ~~~~~~~~~~~~
 
@@ -96,6 +105,14 @@ Indicates whether the field is a unique identifier for the object.
 A human-readable description of the field exposed at the schema level.
 Defaults to the per-Field definition.
 
+``use_in``
+~~~~~~~~~~
+
+.. attribute:: ApiField.use_in
+
+Optionally omit this field in list or detail views.  It can be either 'all',
+'list', or 'detail' or a callable which accepts a bundle and returns a boolean
+value.
 
 Field Types
 -----------
@@ -161,6 +178,11 @@ Covers ``models.IntegerField``, ``models.PositiveIntegerField``,
 
 A list field.
 
+``TimeField``
+-------------
+
+A time field.
+
 
 Relationship Fields
 ===================
@@ -201,15 +223,60 @@ Required.
 Indicates how the related ``Resource`` will appear post-``dehydrate``. If
 ``False``, the related ``Resource`` will appear as a URL to the endpoint of
 that resource. If ``True``, the result of the sub-resource's ``dehydrate`` will
-be included in full.
+be included in full. You can further control post-``dehydrate`` behaviour when
+requesting a resource or a list of resources by setting ``full_list`` and ``full_detail``.
+
+``full_list``
+~~~~~~~~~~~~~
+
+.. attribute:: RelatedField.full_list
+
+Indicates how the related ``Resource`` will appear post-``dehydrate`` when requesting a
+list of resources. The value is one of ``True``, ``False`` or a callable that accepts a
+bundle and returns ``True`` or ``False``. If ``False``, the related ``Resource`` will appear
+as a URL to the endpoint of that resource if accessing a list of resources.  If ``True`` and ``full``
+is also ``True``, the result of thesub-resource's ``dehydrate`` will be included in
+full. Default is ``True``
+
+``full_detail``
+~~~~~~~~~~~~~~~
+
+.. attribute:: RelatedField.full_detail
+
+Indicates how the related ``Resource`` will appear post-``dehydrate`` when requesting a
+single resource. The value is one of ``True``, ``False`` or a callable that accepts a
+bundle and returns ``True`` or ``False``. If ``False``, the related ``Resource`` will appear
+as a URL to the endpoint of that resource if accessing a specific resources. If ``True`` and ``full``
+is also ``True``, the result of thesub-resource's ``dehydrate`` will be included
+in full. Default is ``True``
 
 ``related_name``
 ~~~~~~~~~~~~~~~~
 
 .. attribute:: RelatedField.related_name
 
-Currently unused, as unlike Django's ORM layer, reverse relations between
-``Resource`` classes are not automatically created. Defaults to ``None``.
+Used to help automatically populate reverse relations when creating data.
+Defaults to ``None``.
+
+In order for this option to work correctly, there must be a field on the
+other ``Resource`` with this as an ``attribute/instance_name``. Usually this
+just means adding a reflecting ``ToOneField`` pointing back.
+
+Example::
+
+    class EntryResource(ModelResource):
+        authors = fields.ToManyField('path.to.api.resources.AuthorResource', 'author_set', related_name='entry')
+
+        class Meta:
+            queryset = Entry.objects.all()
+            resource_name = 'entry'
+
+    class AuthorResource(ModelResource):
+        entry = fields.ToOneField(EntryResource, 'entry')
+
+        class Meta:
+            queryset = Author.objects.all()
+            resource_name = 'author'
 
 
 Field Types
@@ -243,7 +310,7 @@ This field also has special behavior when dealing with ``attribute`` in that
 it can take a callable. For instance, if you need to filter the reverse
 relation, you can do something like::
 
-    subjects = fields.ToManyField(SubjectResource, ToManyField(SubjectResource, attribute=lambda bundle: Subject.objects.filter(notes=bundle.obj, name__startswith='Personal'))
+    subjects = fields.ToManyField(SubjectResource, attribute=lambda bundle: Subject.objects.filter(notes=bundle.obj, name__startswith='Personal'))
 
 Note that the ``hydrate`` portions of this field are quite different than
 any other field. ``hydrate_m2m`` actually handles the data and relations.
