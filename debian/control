@@ -3,18 +3,33 @@ Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Dominique Belhachemi <domibel@debian.org>
 Section: python
 Priority: optional
-Build-Depends: cdbs (>=0.4.90), debhelper (>= 8), python-setuptools, python-all (>=2.6.6-3)
-Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 9), dh-python, python-all (>=2.7), python-setuptools, python3-all (>=3.4), python3-setuptools, python-dateutil (>= 1.5), python-mimeparse (>= 0.1.4), python3-dateutil (>= 1.5), python3-mimeparse (>= 0.1.4)
+Standards-Version: 3.9.8
 Homepage: http://django-tastypie.readthedocs.org/
+X-Python-Version: >= 2.7
+X-Python3-Version: >= 3.4
 XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
-Package: python-tastypie
+Package: python-django-tastypie
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, python-dateutil (>= 1.5), python-django (>= 1.2), python-mimeparse (>= 0.1.3)
-Suggests: python-yaml, python-lxml
-Breaks: python-django-tastypie (<= 0.9.9-2)
-Replaces: python-django-tastypie (<= 0.9.9-2)
-Description: webservice API framework for Django
+Depends: ${python:Depends}, ${misc:Depends}, python-dateutil (>= 1.5), python-django (>= 1.7), python-mimeparse (>= 0.1.4)
+Suggests: python-yaml, python-lxml, python-defusedxml
+Breaks: python-tastypie (<< 0.11.1)
+Replaces: python-tastypie (<< 0.11.1)
+Description: webservice API framework for Django (Python 2)
  Tastypie is an webservice API framework for Django. It provides a
  convenient, yet powerful and highly customizable, abstraction for
  creating REST-style interfaces.
+ .
+ This is the Python 2 version of the package.
+
+Package: python3-django-tastypie
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3-dateutil (>= 1.5), python3-django (>= 1.7), python3-mimeparse (>= 0.1.4)
+Suggests: python3-yaml, python3-lxml, python3-defusedxml
+Description: webservice API framework for Django (Python 3)
+ Tastypie is an webservice API framework for Django. It provides a
+ convenient, yet powerful and highly customizable, abstraction for
+ creating REST-style interfaces.
+ .
+ This is the Python 3 version of the package.

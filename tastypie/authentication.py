@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import base64
+from hashlib import sha1
 import hmac
 import time
 import uuid
@@ -8,16 +9,11 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.exceptions import ImproperlyConfigured
 from django.middleware.csrf import _sanitize_token, constant_time_compare
-from django.utils.http import same_origin
+from django.utils.six.moves.urllib.parse import urlparse
 from django.utils.translation import ugettext as _
-from tastypie.http import HttpUnauthorized
-from tastypie.compat import get_user_model, get_username_field
 
-try:
-    from hashlib import sha1
-except ImportError:
-    import sha
-    sha1 = sha.sha
+from tastypie.compat import get_user_model, get_username_field
+from tastypie.http import HttpUnauthorized
 
 try:
     import python_digest
@@ -35,14 +31,55 @@ except ImportError:
     oauth_provider = None
 
 
+def same_origin(url1, url2):
+    """
+    Checks if two URLs are 'same-origin'
+    """
+    PROTOCOL_TO_PORT = {
+        'http': 80,
+        'https': 443,
+    }
+    p1, p2 = urlparse(url1), urlparse(url2)
+    try:
+        o1 = (p1.scheme, p1.hostname, p1.port or PROTOCOL_TO_PORT[p1.scheme])
+        o2 = (p2.scheme, p2.hostname, p2.port or PROTOCOL_TO_PORT[p2.scheme])
+        return o1 == o2
+    except (ValueError, KeyError):
+        return False
+
+
 class Authentication(object):
     """
     A simple base class to establish the protocol for auth.
 
     By default, this indicates the user is always authenticated.
     """
+    auth_type = 'none'
+
     def __init__(self, require_active=True):
         self.require_active = require_active
+
+    def get_authorization_data(self, request):
+        """
+        Verifies that the HTTP Authorization header has the right auth type
+        (matches self.auth_type) and returns the auth data.
+
+        Raises ValueError when data could not be extracted.
+        """
+        authorization = request.META.get('HTTP_AUTHORIZATION', '')
+
+        if not authorization:
+            raise ValueError('Authorization header missing or empty.')
+
+        try:
+            auth_type, data = authorization.split(' ', 1)
+        except:
+            raise ValueError('Authorization header must have a space separating auth_type and data.')
+
+        if auth_type.lower() != self.auth_type:
+            raise ValueError('auth_type is not "%s".' % self.auth_type)
+
+        return data
 
     def is_authenticated(self, request, **kwargs):
         """
@@ -90,6 +127,8 @@ class BasicAuthentication(Authentication):
         The realm to use in the ``HttpUnauthorized`` response.  Default:
         ``django-tastypie``.
     """
+    auth_type = 'basic'
+
     def __init__(self, backend=None, realm='django-tastypie', **kwargs):
         super(BasicAuthentication, self).__init__(**kwargs)
         self.backend = backend
@@ -101,6 +140,13 @@ class BasicAuthentication(Authentication):
         response['WWW-Authenticate'] = 'Basic Realm="%s"' % self.realm
         return response
 
+    def extract_credentials(self, request):
+        data = self.get_authorization_data(request)
+        data = base64.b64decode(data).decode('utf-8')
+        username, password = data.split(':', 1)
+
+        return username, password
+
     def is_authenticated(self, request, **kwargs):
         """
         Checks a user's basic auth credentials against the current
@@ -109,26 +155,21 @@ class BasicAuthentication(Authentication):
         Should return either ``True`` if allowed, ``False`` if not or an
         ``HttpResponse`` if you need something custom.
         """
-        if not request.META.get('HTTP_AUTHORIZATION'):
-            return self._unauthorized()
-
         try:
-            (auth_type, data) = request.META['HTTP_AUTHORIZATION'].split()
-            if auth_type.lower() != 'basic':
-                return self._unauthorized()
-            user_pass = base64.b64decode(data).decode('utf-8')
-        except:
+            username, password = self.extract_credentials(request)
+        except ValueError:
             return self._unauthorized()
 
-        bits = user_pass.split(':', 1)
-
-        if len(bits) != 2:
+        if not username or not password:
             return self._unauthorized()
 
         if self.backend:
-            user = self.backend.authenticate(username=bits[0], password=bits[1])
+            user = self.backend.authenticate(
+                username=username,
+                password=password
+            )
         else:
-            user = authenticate(username=bits[0], password=bits[1])
+            user = authenticate(username=username, password=password)
 
         if user is None:
             return self._unauthorized()
@@ -145,7 +186,11 @@ class BasicAuthentication(Authentication):
 
         This implementation returns the user's basic auth username.
         """
-        return request.META.get('REMOTE_USER', 'nouser')
+        try:
+            username = self.extract_credentials(request)[0]
+        except ValueError:
+            username = ''
+        return username or 'nouser'
 
 
 class ApiKeyAuthentication(Authentication):
@@ -156,17 +201,19 @@ class ApiKeyAuthentication(Authentication):
     a different model, override the ``get_key`` method to perform the key check
     as suits your needs.
     """
+    auth_type = 'apikey'
+
     def _unauthorized(self):
         return HttpUnauthorized()
 
     def extract_credentials(self, request):
-        authorization = request.META.get('HTTP_AUTHORIZATION', '')
-        if authorization and authorization.lower().startswith('apikey '):
-            auth_type, data = authorization.split()
-            username, api_key = data.split(':', 1)
-        else:
+        try:
+            data = self.get_authorization_data(request)
+        except ValueError:
             username = request.GET.get('username') or request.POST.get('username')
             api_key = request.GET.get('api_key') or request.POST.get('api_key')
+        else:
+            username, api_key = data.split(':', 1)
 
         return username, api_key
 
@@ -177,7 +224,6 @@ class ApiKeyAuthentication(Authentication):
         Should return either ``True`` if allowed, ``False`` if not or an
         ``HttpResponse`` if you need something custom.
         """
-
         try:
             username, api_key = self.extract_credentials(request)
         except ValueError:
@@ -189,9 +235,9 @@ class ApiKeyAuthentication(Authentication):
         username_field = get_username_field()
         User = get_user_model()
 
+        lookup_kwargs = {username_field: username}
         try:
-            lookup_kwargs = {username_field: username}
-            user = User.objects.get(**lookup_kwargs)
+            user = User.objects.select_related('api_key').get(**lookup_kwargs)
         except (User.DoesNotExist, User.MultipleObjectsReturned):
             return self._unauthorized()
 
@@ -212,7 +258,8 @@ class ApiKeyAuthentication(Authentication):
         from tastypie.models import ApiKey
 
         try:
-            ApiKey.objects.get(user=user, key=api_key)
+            if user.api_key.key != api_key:
+                return self._unauthorized()
         except ApiKey.DoesNotExist:
             return self._unauthorized()
 
@@ -224,7 +271,10 @@ class ApiKeyAuthentication(Authentication):
 
         This implementation returns the user's username.
         """
-        username, api_key = self.extract_credentials(request)
+        try:
+            username = self.extract_credentials(request)[0]
+        except ValueError:
+            username = ''
         return username or 'nouser'
 
 
@@ -300,6 +350,8 @@ class DigestAuthentication(Authentication):
         The realm to use in the ``HttpUnauthorized`` response.  Default:
         ``django-tastypie``.
     """
+    auth_type = 'digest'
+
     def __init__(self, backend=None, realm='django-tastypie', **kwargs):
         super(DigestAuthentication, self).__init__(**kwargs)
         self.backend = backend
@@ -314,7 +366,7 @@ class DigestAuthentication(Authentication):
         opaque = hmac.new(str(new_uuid).encode('utf-8'), digestmod=sha1).hexdigest()
         response['WWW-Authenticate'] = python_digest.build_digest_challenge(
             timestamp=time.time(),
-            secret=getattr(settings, 'SECRET_KEY', ''),
+            secret=settings.SECRET_KEY,
             realm=self.realm,
             opaque=opaque,
             stale=False
@@ -328,21 +380,15 @@ class DigestAuthentication(Authentication):
         Should return either ``True`` if allowed, ``False`` if not or an
         ``HttpResponse`` if you need something custom.
         """
-        if not request.META.get('HTTP_AUTHORIZATION'):
-            return self._unauthorized()
-
         try:
-            (auth_type, data) = request.META['HTTP_AUTHORIZATION'].split(' ', 1)
-
-            if auth_type.lower() != 'digest':
-                return self._unauthorized()
-        except:
+            self.get_authorization_data(request)
+        except ValueError:
             return self._unauthorized()
 
         digest_response = python_digest.parse_digest_credentials(request.META['HTTP_AUTHORIZATION'])
 
         # FIXME: Should the nonce be per-user?
-        if not python_digest.validate_nonce(digest_response.nonce, getattr(settings, 'SECRET_KEY', '')):
+        if not python_digest.validate_nonce(digest_response.nonce, settings.SECRET_KEY):
             return self._unauthorized()
 
         user = self.get_user(digest_response.username)
@@ -425,7 +471,7 @@ class OAuthAuthentication(Authentication):
             raise ImproperlyConfigured("The 'django-oauth-plus' package could not be imported. It is required for use with the 'OAuthAuthentication' class.")
 
     def is_authenticated(self, request, **kwargs):
-        from oauth_provider.store import store, InvalidTokenError
+        from oauth_provider.store import store
 
         if self.is_valid_request(request):
             oauth_request = oauth_provider.utils.get_oauth_request(request)

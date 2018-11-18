@@ -1,16 +1,16 @@
-Format: http://anonscm.debian.org/viewvc/dep/web/deps/dep5.mdwn?revision=202
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Source: http://django-tastypie.readthedocs.org/en/latest/index.html
 
 Files: *
 Copyright: (c) 2010, Daniel Lindsley
-License: BSD
+License: BSD-3-clause
 
 Files: debian/*
 Copyright: 2011, Dominique Belhachemi <domibel@debian.org>
-License: BSD
+License: BSD-3-clause
 
 
-License: BSD
+License: BSD-3-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
     * Redistributions of source code must retain the above copyright
