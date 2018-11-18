@@ -4,7 +4,7 @@ django-tastypie (0.12.2-1) precise; urgency=low
 
  -- Colin Bradbury <colin.bradbury@gmail.com>  Mon, 07 Dec 2015 13:36:28 +0000
 
- django-tastypie (0.9.15-1) precise; urgency=low
+django-tastypie (0.9.15-1) precise; urgency=low
 
    * Imported Upstream version 0.9.15
 
