@@ -14,8 +14,8 @@ Package: python-django-tastypie
 Architecture: all
 Depends: ${python:Depends}, ${misc:Depends}, python-dateutil (>= 1.5), python-django (>= 1.7), python-mimeparse (>= 0.1.4)
 Suggests: python-yaml, python-lxml, python-defusedxml
-Breaks: python-tastypie (<< 0.11.1)
-Replaces: python-tastypie (<< 0.11.1)
+Breaks: python-tastypie (<< 0.13.3-1pexip1)
+Replaces: python-tastypie (<< 0.13.3-1pexip1)
 Description: webservice API framework for Django (Python 2)
  Tastypie is an webservice API framework for Django. It provides a
  convenient, yet powerful and highly customizable, abstraction for
