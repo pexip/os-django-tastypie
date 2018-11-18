@@ -1,10 +1,12 @@
 Source: django-tastypie
-Maintainer: Dominique Belhachemi <domibel@debian.org>
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Dominique Belhachemi <domibel@debian.org>
 Section: python
 Priority: optional
 Build-Depends: cdbs (>=0.4.90), debhelper (>= 8), python-setuptools, python-all (>=2.6.6-3)
 Standards-Version: 3.9.2
 Homepage: http://django-tastypie.readthedocs.org/
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
 Package: python-tastypie
 Architecture: all
