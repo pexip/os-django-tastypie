@@ -1,3 +1,9 @@
+django-tastypie (0.13.3-1pexip3) pexip; urgency=medium
+
+  * Rebuild in buster environment
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Wed, 15 Jul 2020 18:14:15 +0000
+
 django-tastypie (0.13.3-1pexip2) pexip; urgency=low
 
   * Bump version number for override update
